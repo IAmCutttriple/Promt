@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Prompt & Request Evaluator</title>
+    <style>
+        /* ---------- RESET & GLOBAL ---------- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        }
+
+        :root {
+            --bg: linear-gradient(135deg, #f6f9ff 0%, #eef2fa 100%);
+            --card: rgba(255, 255, 255, 0.9);
+            --card-border: rgba(255, 255, 255, 0.7);
+            --primary: #1e6bff;
+            --primary-dark: #0b4dcc;
+            --primary-glow: rgba(30, 107, 255, 0.2);
+            --text: #0b1a30;
+            --muted: #4a5a72;
+            --star-on: #f9b93b;
+            --star-off: #d9e1f0;
+            --strength-bg: #e6f7ed;
+            --strength-border: #a3e0b8;
+            --improve-bg: #fff3e0;
+            --improve-border: #fcd9a3;
+            --rewrite-bg: #eef3ff;
+            --rewrite-border: #b8c9f0;
+            --shadow: 0 25px 50px -12px rgba(0, 20, 60, 0.25);
+            --radius-lg: 36px;
+            --radius-md: 22px;
+            --radius-sm: 16px;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            color: var(--text);
+            font-size: 16px;
+        }
+
+        .app {
+            width: 100%;
+            max-width: 980px;
+            background: var(--card);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow);
+            padding: 40px 36px;
+            transition: all 0.2s;
+        }
+
+        h1 {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            font-size: 2.1rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 6px;
+            color: #07162b;
+        }
+
+        .badge {
+            background: var(--primary);
+            color: white;
+            font-size: 1.3rem;
+            width: 54px;
+            height: 54px;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 22px -6px var(--primary-glow);
+        }
+
+        .subhead {
+            color: var(--muted);
+            font-size: 1.05rem;
+            margin-bottom: 26px;
+            padding-left: 18px;
+            border-left: 4px solid var(--primary);
+            font-weight: 400;
+        }
+
+        /* ---------- INPUT ---------- */
+        .input-area {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 26px;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 150px;
+            padding: 22px 24px;
+            font-size: 1.05rem;
+            line-height: 1.6;
+            border-radius: var(--radius-md);
+            border: 1.5px solid #d4ddec;
+            background: #ffffff;
+            resize: vertical;
+            transition: border 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 5px var(--primary-glow);
+        }
+
+        .btn-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 16px 36px;
+            font-size: 1.12rem;
+            font-weight: 600;
+            border-radius: 60px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 14px 26px -10px var(--primary-glow);
+            transition: all 0.2s ease;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            letter-spacing: -0.01em;
+        }
+
+        .btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 20px 30px -10px var(--primary-glow);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .btn:disabled {
+            opacity: 0.7;
+            transform: none;
+            pointer-events: none;
+        }
+
+        .loading-spinner {
+            width: 22px;
+            height: 22px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* ---------- RESULT SECTION ---------- */
+        .result {
+            margin-top: 8px;
+        }
+
+        .score-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 18px;
+            background: white;
+            padding: 18px 28px;
+            border-radius: 90px;
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.02);
+            border: 1px solid #e6ecf7;
+            margin-bottom: 28px;
+        }
+
+        .stars {
+            display: flex;
+            gap: 8px;
+            font-size: 2.5rem;
+            line-height: 1;
+            color: var(--star-off);
+        }
+
+        .stars .filled {
+            color: var(--star-on);
+            text-shadow: 0 0 12px rgba(249, 185, 59, 0.4);
+        }
+
+        .score-num {
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: var(--primary);
+            background: #f2f7ff;
+            padding: 8px 24px;
+            border-radius: 50px;
+        }
+
+        .score-num span {
+            font-size: 2rem;
+            font-weight: 800;
+        }
+
+        .feedback-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 22px;
+            margin-bottom: 24px;
+        }
+
+        .card {
+            background: white;
+            border-radius: var(--radius-md);
+            padding: 26px 24px;
+            border: 1px solid #e9eff9;
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.02);
+            transition: transform 0.1s;
+        }
+
+        .card h3 {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.28rem;
+            font-weight: 600;
+            margin-bottom: 18px;
+            letter-spacing: -0.01em;
+        }
+
+        .card ul {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .card li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-size: 1rem;
+            line-height: 1.5;
+            color: #1e2b3f;
+        }
+
+        .card li::before {
+            content: "▹";
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 1.3rem;
+            line-height: 1;
+            opacity: 0.7;
+        }
+
+        .card.strength {
+            background: var(--strength-bg);
+            border-color: var(--strength-border);
+        }
+
+        .card.strength h3 { color: #1b6b3a; }
+
+        .card.improve {
+            background: var(--improve-bg);
+            border-color: var(--improve-border);
+        }
+
+        .card.improve h3 { color: #9c5e0e; }
+
+        .rewrite-card {
+            background: var(--rewrite-bg);
+            border: 1px solid var(--rewrite-border);
+            border-radius: var(--radius-md);
+            padding: 28px 26px;
+            box-shadow: 0 10px 22px rgba(0, 0, 0, 0.02);
+            margin-bottom: 10px;
+        }
+
+        .rewrite-card h3 {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #103a8c;
+            margin-bottom: 16px;
+        }
+
+        .rewrite-text {
+            background: white;
+            padding: 20px 24px;
+            border-radius: var(--radius-sm);
+            font-size: 1.06rem;
+            line-height: 1.7;
+            border-left: 6px solid var(--primary);
+            box-shadow: inset 0 1px 6px rgba(0, 0, 0, 0.02);
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: #0a1a34;
+        }
+
+        .copy-btn {
+            background: transparent;
+            border: 1.5px solid var(--primary);
+            color: var(--primary);
+            padding: 10px 20px;
+            border-radius: 40px;
+            font-size: 0.92rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 14px;
+            transition: all 0.15s;
+        }
+
+        .copy-btn:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* ---------- UTILITY ---------- */
+        .hidden { display: none; }
+
+        .fade-in {
+            animation: fadeIn 0.35s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ---------- RESPONSIVE ---------- */
+        @media (max-width: 720px) {
+            .app { padding: 28px 20px; }
+            h1 { font-size: 1.7rem; }
+            .badge { width: 46px; height: 46px; font-size: 1.2rem; }
+            .feedback-grid { grid-template-columns: 1fr; }
+            .btn { width: 100%; }
+            .score-bar { flex-direction: column; align-items: flex-start; }
+            .stars { font-size: 2rem; }
+        }
+
+        @media (max-width: 440px) {
+            .app { padding: 18px 14px; }
+            textarea { padding: 16px; }
+            .rewrite-card { padding: 18px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <h1>
+            <span class="badge">✦</span> Universal Prompt Evaluator
+        </h1>
+        <div class="subhead">
+            Evaluate any request — art, events, emails, invitations & more.
+        </div>
+
+        <!-- INPUT -->
+        <div class="input-area">
+            <textarea id="promptInput" placeholder="e.g. Draw Sukuna from JJK in a dark, cinematic style with glowing red eyes… OR Plan a birthday party for 20 people with a budget of $500…"></textarea>
+            <div class="btn-row">
+                <button class="btn" id="evaluateBtn">
+                    <span id="btnIcon">⚡</span>
+                    <span id="btnText">Evaluate Prompt</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- RESULT (hidden initially) -->
+        <div id="resultArea" class="result hidden">
+            <!-- Score -->
+            <div class="score-bar">
+                <div class="stars" id="starsContainer"></div>
+                <div class="score-num" id="scoreNum"><span>0</span> / 5</div>
+            </div>
+
+            <!-- Feedback cards -->
+            <div class="feedback-grid">
+                <div class="card strength">
+                    <h3>✅ Strengths</h3>
+                    <ul id="strengthsList"></ul>
+                </div>
+                <div class="card improve">
+                    <h3>🔧 Areas for Improvement</h3>
+                    <ul id="improvementsList"></ul>
+                </div>
+            </div>
+
+            <!-- Rewrite -->
+            <div class="rewrite-card">
+                <h3>✨ Optimized Rewrite</h3>
+                <div class="rewrite-text" id="rewriteText"></div>
+                <button class="copy-btn" id="copyBtn">📋 Copy rewrite</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // ---------- DOM ----------
+            const promptInput = document.getElementById('promptInput');
+            const evaluateBtn = document.getElementById('evaluateBtn');
+            const btnIcon = document.getElementById('btnIcon');
+            const btnText = document.getElementById('btnText');
+            const resultArea = document.getElementById('resultArea');
+            const starsContainer = document.getElementById('starsContainer');
+            const scoreNum = document.getElementById('scoreNum');
+            const strengthsList = document.getElementById('strengthsList');
+            const improvementsList = document.getElementById('improvementsList');
+            const rewriteText = document.getElementById('rewriteText');
+            const copyBtn = document.getElementById('copyBtn');
+
+            // ---------- CATEGORY DETECTION ----------
+            function detectCategory(text) {
+                const t = text.toLowerCase();
+                // art / image generation
+                if (/\b(draw|paint|sketch|illustrate|render|anime|manga|character|sukuna|doraemon|gojo|naruto|goku|style|art|image|picture|portrait|landscape|digital|canvas|lighting|color|palette)\b/.test(t)) {
+                    return 'art';
+                }
+                // event planning / invitations
+                if (/\b(party|event|wedding|birthday|invitation|invite|celebrate|venue|guests|rsvp|ceremony|reception|plan|organize|budget|decor|catering|schedule)\b/.test(t)) {
+                    return 'event';
+                }
+                // writing / emails
+                if (/\b(email|letter|message|write|draft|compose|reply|respond|professional|formal|tone|recipient|subject|greeting|signature|memo|report|proposal)\b/.test(t)) {
+                    return 'writing';
+                }
+                // fallback: general
+                return 'general';
+            }
+
+            // ---------- SCORING ----------
+            function analyzePrompt(text) {
+                const raw = text.trim();
+                if (!raw) return null;
+                const lower = raw.toLowerCase();
+                const words = raw.split(/\s+/).filter(w => w.length > 0);
+                const wordCount = words.length;
+                const uniqueWords = new Set(words.map(w => w.toLowerCase()));
+                const uniqueRatio = wordCount > 0 ? uniqueWords.size / wordCount : 0;
+                const category = detectCategory(raw);
+
+                // --- category-specific keyword checks ---
+                const artKeywords = ['style', 'lighting', 'color', 'palette', 'pose', 'expression', 'background', 'detail', 'high quality', '8k', 'realistic', 'anime', 'cinematic', 'mood', 'vibe', 'composition', 'angle', 'lens', 'render'];
+                const eventKeywords = ['date', 'time', 'venue', 'location', 'guests', 'budget', 'theme', 'catering', 'decor', 'rsvp', 'schedule', 'menu', 'activity', 'music', 'dress code', 'invitation', 'host'];
+                const writingKeywords = ['recipient', 'tone', 'purpose', 'audience', 'subject', 'greeting', 'closing', 'formal', 'casual', 'professional', 'concise', 'detail', 'request', 'call to action', 'deadline'];
+
+                let catKeywords = [];
+                if (category === 'art') catKeywords = artKeywords;
+                else if (category === 'event') catKeywords = eventKeywords;
+                else if (category === 'writing') catKeywords = writingKeywords;
+                else catKeywords = [...artKeywords, ...eventKeywords, ...writingKeywords];
+
+                const matchedCatKeywords = catKeywords.filter(k => lower.includes(k));
+                const catScore = Math.min(3, matchedCatKeywords.length * 0.7);
+
+                // --- general criteria ---
+                // length
+                let lengthScore = 0;
+                if (wordCount >= 10 && wordCount <= 45) lengthScore = 1.5;
+                else if (wordCount > 45 && wordCount <= 80) lengthScore = 1.0;
+                else if (wordCount > 3 && wordCount < 10) lengthScore = 0.6;
+                else if (wordCount > 80) lengthScore = 0.8;
+                else lengthScore = 0.2;
+
+                // action verb
+                const actionVerbs = ['write', 'create', 'draw', 'paint', 'plan', 'organize', 'draft', 'compose', 'generate', 'design', 'list', 'explain', 'describe', 'provide', 'suggest', 'outline', 'build', 'make', 'develop'];
+                const hasAction = actionVerbs.some(v => lower.includes(v));
+                const actionScore = hasAction ? 1.0 : 0.3;
+
+                // specificity: numbers, quotes, proper nouns?
+                const hasNumbers = /\d+/.test(raw);
+                const hasQuotes = /["'“”‘’]/.test(raw);
+                const specScore = (hasNumbers ? 0.4 : 0) + (hasQuotes ? 0.3 : 0);
+
+                // context score (general)
+                const contextKeywords = ['audience', 'tone', 'format', 'length', 'word', 'paragraph', 'bullet', 'example', 'beginner', 'expert', 'professional', 'casual', 'formal', 'limit', 'max', 'min', 'within', 'constraint', 'must', 'should', 'avoid', 'include', 'without'];
+                const contextCount = contextKeywords.filter(k => lower.includes(k)).length;
+                const contextScore = Math.min(1.2, contextCount * 0.35);
+
+                // combine raw
+                let rawScore = lengthScore + actionScore + specScore + contextScore + catScore;
+                // max theoretical ~1.5+1.0+0.7+1.2+3 = 7.4, normalize to 5
+                let score = (rawScore / 7.4) * 5;
+                // clamp and round
+                score = Math.round(Math.min(5, Math.max(0.5, score)) * 10) / 10;
+                if (wordCount < 4) score = Math.min(score, 2.0);
+
+                return {
+                    score,
+                    wordCount,
+                    category,
+                    matchedCatKeywords,
+                    uniqueRatio,
+                    hasAction,
+                    contextCount,
+                    rawText: raw,
+                    lower,
+                    hasNumbers,
+                    hasQuotes
+                };
+            }
+
+            // ---------- FEEDBACK GENERATION ----------
+            function generateFeedback(analysis) {
+                if (!analysis) return null;
+                const { score, wordCount, category, matchedCatKeywords, hasAction, contextCount, rawText, lower, hasNumbers, hasQuotes } = analysis;
+
+                const strengths = [];
+                const improvements = [];
+
+                // ---- CATEGORY-SPECIFIC STRENGTHS & IMPROVEMENTS ----
+                if (category === 'art') {
+                    if (matchedCatKeywords.length > 0) strengths.push(`Includes visual details: ${matchedCatKeywords.slice(0, 3).join(', ')}.`);
+                    if (!lower.includes('style') && !lower.includes('lighting')) improvements.push('Specify an art style (e.g., anime, realistic, watercolor) and lighting (e.g., soft, dramatic).');
+                    if (!lower.includes('color') && !lower.includes('palette')) improvements.push('Add a color palette or mood (e.g., vibrant, pastel, dark).');
+                    if (!lower.includes('detail') && !lower.includes('8k')) improvements.push('Mention the level of detail (e.g., high detail, 8K, intricate).');
+                } else if (category === 'event') {
+                    if (matchedCatKeywords.length > 0) strengths.push(`Covers event specifics: ${matchedCatKeywords.slice(0, 3).join(', ')}.`);
+                    if (!lower.includes('date') && !lower.includes('time')) improvements.push('Add a date and time for the event.');
+                    if (!lower.includes('venue') && !lower.includes('location')) improvements.push('Specify the venue or location (e.g., backyard, hotel, park).');
+                    if (!lower.includes('budget')) improvements.push('Include a budget or cost constraints.');
+                    if (!lower.includes('guest')) improvements.push('Mention the number of guests or the target audience.');
+                } else if (category === 'writing') {
+                    if (matchedCatKeywords.length > 0) strengths.push(`Includes writing elements: ${matchedCatKeywords.slice(0, 3).join(', ')}.`);
+                    if (!lower.includes('tone')) improvements.push('Define the tone (e.g., formal, friendly, persuasive).');
+                    if (!lower.includes('recipient') && !lower.includes('audience')) improvements.push('Identify the recipient or target audience.');
+                    if (!lower.includes('subject')) improvements.push('Add a subject line or main topic.');
+                } else {
+                    if (matchedCatKeywords.length > 0) strengths.push(`Includes relevant keywords: ${matchedCatKeywords.slice(0, 3).join(', ')}.`);
+                    if (!lower.includes('style') && !lower.includes('format')) improvements.push('Specify a style or format (e.g., list, essay, bullet points).');
+                }
+
+                // ---- GENERAL STRENGTHS ----
+                if (hasAction) strengths.push('Uses a clear action verb (e.g., "draw", "plan", "write") that tells the AI what to do.');
+                if (wordCount >= 12 && wordCount <= 45) strengths.push('Good length — detailed enough to be clear, not overwhelming.');
+                else if (wordCount > 45) strengths.push('Provides substantial detail, which helps the AI understand the request.');
+                else if (wordCount >= 5) strengths.push('Concise and focused.');
+                if (contextCount >= 2) strengths.push('Includes useful context or constraints (format, audience, tone).');
+                if (hasNumbers) strengths.push('Uses numerical details that add precision.');
+                if (hasQuotes) strengths.push('Includes quoted references for clarity.');
+                if (analysis.uniqueRatio > 0.75 && wordCount > 5) strengths.push('Rich vocabulary with little repetition.');
+                if (strengths.length === 0) strengths.push('Every prompt is a starting point — you\'ve taken the first step!');
+
+                // ---- GENERAL IMPROVEMENTS ----
+                if (!hasAction) improvements.push('Add a strong action verb (e.g., "create", "plan", "write") to clarify the request.');
+                if (wordCount < 8) improvements.push('The prompt is quite short — expand with specific details.');
+                if (wordCount > 70) improvements.push('Consider trimming to the essential request for better AI focus.');
+                if (contextCount < 2) improvements.push('Add context: audience, tone, format, length, or constraints.');
+                if (analysis.uniqueRatio < 0.5 && wordCount > 10) improvements.push('Reduce repetition — use more varied descriptive words.');
+                if (!hasNumbers && !hasQuotes && wordCount > 6) improvements.push('Add specific examples, numbers, or quotes for precision.');
+                if (improvements.length === 0) improvements.push('Your prompt is already strong — consider adding even more specific constraints for perfect output.');
+
+                // ---- REWRITE ----
+                let rewrite = rawText;
+                if (rewrite.length > 0) {
+                    rewrite = rewrite.charAt(0).toUpperCase() + rewrite.slice(1);
+                    if (!/[.!?]$/.test(rewrite)) rewrite += '.';
+                }
+
+                // Category-aware enhancement
+                const needsEnhancement = !hasAction || contextCount < 2 || wordCount < 12 ||
+                    (category === 'art' && matchedCatKeywords.length < 2) ||
+                    (category === 'event' && matchedCatKeywords.length < 2) ||
+                    (category === 'writing' && matchedCatKeywords.length < 2);
+
+                if (needsEnhancement) {
+                    let enhanced = '';
+                    // base
+                    if (!hasAction) enhanced += `Please ${rawText}. `;
+                    else enhanced += `${rawText}. `;
+
+                    // category-specific additions
+                    if (category === 'art') {
+                        enhanced += 'Art style: vibrant anime aesthetic with dramatic lighting and a dynamic pose. Include high detail and a cinematic background. ';
+                    } else if (category === 'event') {
+                        enhanced += 'Include specific details: date, time, venue, guest count, budget, theme, and catering options. ';
+                    } else if (category === 'writing') {
+                        enhanced += 'Use a professional yet friendly tone. Include a clear subject line, address the recipient by name, and state the purpose clearly. ';
+                    } else {
+                        enhanced += 'Provide a clear structure with an introduction, key points, and a conclusion. Use a professional tone. ';
+                    }
+                    if (wordCount < 12) enhanced += 'Include at least two specific examples to illustrate your points.';
+                    if (enhanced.trim().length > rawText.length + 10) {
+                        rewrite = enhanced.trim();
+                    } else {
+                        rewrite = `Refined: ${rawText.charAt(0).toUpperCase() + rawText.slice(1)}. Add specific details about tone, format, and audience for best results.`;
+                    }
+                } else {
+                    // just polish
+                    rewrite = rawText.charAt(0).toUpperCase() + rawText.slice(1);
+                    if (!/[.!?]$/.test(rewrite)) rewrite += '.';
+                    rewrite += ' Ensure the response is well-structured and tailored to the intended audience.';
+                }
+
+                // cleanup
+                rewrite = rewrite.replace(/\s+/g, ' ').replace(/\.\./g, '.').trim();
+
+                return { strengths, improvements, rewrite };
+            }
+
+            // ---------- UI UPDATE ----------
+            function updateUI(analysis, feedback) {
+                if (!analysis) return;
+
+                // stars
+                const score = analysis.score;
+                const fullStars = Math.floor(score);
+                const halfStar = (score - fullStars) >= 0.5;
+                let starsHtml = '';
+                for (let i = 1; i <= 5; i++) {
+                    if (i <= fullStars) starsHtml += '<span class="filled">★</span>';
+                    else if (i === fullStars + 1 && halfStar) starsHtml += '<span class="filled" style="opacity:0.65;">★</span>';
+                    else starsHtml += '<span>★</span>';
+                }
+                starsContainer.innerHTML = starsHtml;
+                scoreNum.innerHTML = `<span>${score.toFixed(1)}</span> / 5`;
+
+                // lists
+                strengthsList.innerHTML = feedback.strengths.map(s => `<li>${s}</li>`).join('');
+                improvementsList.innerHTML = feedback.improvements.map(i => `<li>${i}</li>`).join('');
+                rewriteText.textContent = feedback.rewrite;
+
+                // show with animation
+                resultArea.classList.remove('hidden');
+                resultArea.classList.add('fade-in');
+                setTimeout(() => resultArea.classList.remove('fade-in'), 400);
+            }
+
+            // ---------- LOADING STATE ----------
+            function setLoading(isLoading) {
+                if (isLoading) {
+                    evaluateBtn.disabled = true;
+                    btnIcon.innerHTML = '<span class="loading-spinner"></span>';
+                    btnText.textContent = 'Evaluating…';
+                } else {
+                    evaluateBtn.disabled = false;
+                    btnIcon.textContent = '⚡';
+                    btnText.textContent = 'Evaluate Prompt';
+                }
+            }
+
+            // ---------- MAIN HANDLER ----------
+            function handleEvaluate() {
+                const text = promptInput.value.trim();
+                if (text === '') {
+                    resultArea.classList.add('hidden');
+                    alert('Please enter a prompt or request to evaluate.');
+                    return;
+                }
+
+                setLoading(true);
+                resultArea.classList.add('hidden'); // hide old results during loading
+
+                // Simulate AI processing with a short delay for smooth UX
+                setTimeout(() => {
+                    const analysis = analyzePrompt(text);
+                    if (analysis) {
+                        const feedback = generateFeedback(analysis);
+                        updateUI(analysis, feedback);
+                    }
+                    setLoading(false);
+                }, 450);
+            }
+
+            // ---------- COPY REWRITE ----------
+            copyBtn.addEventListener('click', () => {
+                const text = rewriteText.textContent;
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).then(() => {
+                        copyBtn.textContent = '✅ Copied!';
+                        setTimeout(() => copyBtn.innerHTML = '📋 Copy rewrite', 1500);
+                    }).catch(() => {
+                        // fallback
+                        fallbackCopy(text);
+                    });
+                } else {
+                    fallbackCopy(text);
+                }
+            });
+
+            function fallbackCopy(text) {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                copyBtn.textContent = '✅ Copied!';
+                setTimeout(() => copyBtn.innerHTML = '📋 Copy rewrite', 1500);
+            }
+
+            // ---------- EVENTS ----------
+            evaluateBtn.addEventListener('click', handleEvaluate);
+
+            promptInput.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    handleEvaluate();
+                }
+            });
+
+            // initial state
+            resultArea.classList.add('hidden');
+        })();
+    </script>
+</body>
+</html>
